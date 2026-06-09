@@ -1,0 +1,16 @@
+{
+  "name": "agri-platform-phase1",
+  "version": "1.0.0",
+  "description": "Agri Voice Platform — Phase 1: Intent extraction pipeline",
+  "type": "module",
+  "scripts": {
+    "test":    "npx tsx tests/runPipeline.ts",
+    "dev":     "npx tsx tests/runPipeline.ts",
+    "typecheck": "npx tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "tsx":        "^4.10.0",
+    "@types/node": "^20.0.0"
+  }
+}
