@@ -1,10 +1,9 @@
 import sys
 import os
-import io
+#import io
 import time
 import tempfile
 
-# Add the cached model directory to path so we can import model_onnx
 MODEL_SNAPSHOT_PATH = os.path.expanduser(
     r"~\.cache\huggingface\hub\models--ai4bharat--indic-conformer-600m-multilingual\snapshots\e9b71b369c048e2c6b634d4c131061c34e441179"
 )
@@ -19,7 +18,7 @@ import soundfile as sf
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-# ── Constants ─────────────────────────────────────────────────
+#    Constants  
 
 SAMPLE_RATE = 16000
 
@@ -28,7 +27,7 @@ SUPPORTED_LANGUAGES = [
     "as", "ur", "sa", "ne", "sd", "kok", "mai", "mni", "brx", "doi", "sat", "ks"
 ]
 
-# ── App setup ─────────────────────────────────────────────────
+#    App setup  
 
 app = FastAPI(
     title="Agri Platform STT Service",
@@ -44,7 +43,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Model loading at startup ──────────────────────────────────
+#    Model loading at startup                                   
 # Loaded ONCE when uvicorn starts — never reloaded per request
 
 model = None
@@ -60,7 +59,7 @@ async def load_model():
         print(f"CRITICAL: Model failed to load: {e}")
         raise e
 
-# ── Health check ──────────────────────────────────────────────
+#    Health check                                               
 
 @app.get("/health")
 def health():
@@ -68,7 +67,7 @@ def health():
         return {"status": "error", "model": "not loaded"}
     return {"status": "ok", "model": "loaded", "supported_languages": SUPPORTED_LANGUAGES}
 
-# ── Transcribe endpoint ───────────────────────────────────────
+#    Transcribe endpoint                                        
 
 @app.post("/transcribe")
 async def transcribe(
@@ -90,8 +89,7 @@ async def transcribe(
     if len(audio_bytes) == 0:
         raise HTTPException(status_code=400, detail="Empty audio file received.")
 
-    # Save to a temp file so librosa can read it
-    # (librosa needs a file path or file-like object, not raw bytes directly)
+    # Save to a temp file so librosa can read it (librosa needs a file path or file-like object, not raw bytes directly)
     suffix = os.path.splitext(audio.filename or "audio.wav")[1] or ".wav"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(audio_bytes)
@@ -118,7 +116,7 @@ async def transcribe(
     if duration > 30.0:
         raise HTTPException(status_code=400, detail="Audio too long. Maximum 30 seconds.")
 
-    # Convert to torch tensor — shape (1, samples)
+    # Convert
     wav_tensor = torch.tensor(audio_array).unsqueeze(0)
 
     # Run inference

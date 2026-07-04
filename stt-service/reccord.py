@@ -2,7 +2,7 @@ import sounddevice as sd
 import soundfile as sf
 import numpy as np
 
-DURATION = 5   #sec
+DURATION = 5
 SAMPLE_RATE = 16000
 
 print("Recording for 5 sec... speak now!")

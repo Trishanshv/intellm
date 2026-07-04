@@ -1,0 +1,24 @@
+{
+  "name": "agri-platform-server",
+  "version": "1.0.0",
+  "description": "Agri Voice Navigation Engine — Node.js Orchestrator",
+  "type": "module",
+  "scripts": {
+    "dev":       "npx tsx --watch src/index.ts",
+    "start":     "npx tsx src/index.ts",
+    "typecheck": "npx tsc --noEmit"
+  },
+  "dependencies": {
+    "cors":    "^2.8.5",
+    "express": "^4.19.2",
+    "multer":  "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "@types/cors":    "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/multer":  "^1.4.11",
+    "@types/node":    "^20.0.0",
+    "tsx":            "^4.10.0",
+    "typescript":     "^5.4.0"
+  }
+}
