@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriNav SDK — Demo Platform</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:     #16a34a;
+      --green-light: #dcfce7;
+      --amber:     #d97706;
+      --amber-light: #fef3c7;
+      --red:       #dc2626;
+      --red-light: #fee2e2;
+      --blue:      #2563eb;
+      --blue-light: #dbeafe;
+      --gray:      #6b7280;
+      --gray-light: #f3f4f6;
+      --border:    #e5e7eb;
+      --text:      #111827;
+      --radius:    10px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f9fafb;
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 260px 1fr 300px;
+      grid-template-rows: 56px 1fr;
+    }
+
+    /* ── Header ── */
+    header {
+      grid-column: 1 / -1;
+      background: var(--green);
+      color: white;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      font-weight: 600;
+      font-size: 15px;
+    }
+    header .badge {
+      font-size: 11px;
+      background: rgba(255,255,255,0.25);
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 400;
+    }
+    .conn-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #fca5a5;
+      transition: background 0.3s;
+      margin-left: auto;
+    }
+    .conn-dot.connected { background: #86efac; }
+
+    /* ── Sidebar ── */
+    nav {
+      background: white;
+      border-right: 1px solid var(--border);
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    nav .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--gray);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 8px 8px 4px;
+    }
+    nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 7px;
+      text-decoration: none;
+      color: var(--gray);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    nav a:hover, nav a.active {
+      background: var(--green-light);
+      color: var(--green);
+      font-weight: 500;
+    }
+    nav a .icon { font-size: 16px; width: 20px; text-align: center; }
+
+    /* ── Main content ── */
+    main {
+      padding: 24px;
+      overflow-y: auto;
+    }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .page-header {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .page-sub {
+      color: var(--gray);
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat {
+      background: var(--gray-light);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat .value { font-size: 28px; font-weight: 700; color: var(--green); }
+    .stat .label { font-size: 12px; color: var(--gray); margin-top: 2px; }
+
+    /* ── Voice panel (right sidebar) ── */
+    .voice-panel {
+      background: white;
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 12px;
+    }
+    .voice-panel h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gray);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    #micBtn {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      border: none;
+      background: var(--green);
+      color: white;
+      font-size: 28px;
+      cursor: pointer;
+      margin: 8px auto;
+      display: block;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(22,163,74,0.3);
+    }
+    #micBtn:hover { transform: scale(1.05); }
+    #micBtn.recording { background: var(--red); animation: pulse 1s infinite; }
+    #micBtn:disabled { background: var(--gray); cursor: not-allowed; transform: none; }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); }
+      50%       { box-shadow: 0 0 0 12px rgba(220,38,38,0); }
+    }
+
+    #statusText {
+      text-align: center;
+      font-size: 13px;
+      color: var(--gray);
+      min-height: 20px;
+    }
+
+    .log-box {
+      flex: 1;
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 12px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    .log-entry { margin-bottom: 4px; }
+    .log-entry.info    { color: #94a3b8; }
+    .log-entry.success { color: #86efac; }
+    .log-entry.warn    { color: #fcd34d; }
+    .log-entry.error   { color: #fca5a5; }
+    .log-entry.cmd     { color: #7dd3fc; }
+
+    .clarify-box {
+      background: var(--amber-light);
+      border: 1px solid var(--amber);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      display: none;
+    }
+    .clarify-box.show { display: block; }
+    .clarify-box p { font-weight: 600; margin-bottom: 8px; color: var(--amber); }
+    .suggestion-btn {
+      display: block; width: 100%;
+      background: white; border: 1px solid var(--amber);
+      border-radius: 6px; padding: 6px 10px;
+      font-size: 12px; cursor: pointer; margin-bottom: 4px;
+      text-align: left; color: var(--text);
+    }
+    .suggestion-btn:hover { background: var(--amber); color: white; }
+
+    .lang-select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 13px;
+      background: white;
+    }
+
+    .perf-row {
+      display: flex; justify-content: space-between;
+      font-size: 12px; padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .perf-row:last-child { border-bottom: none; }
+    .perf-val { font-weight: 600; color: var(--green); }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    🌾 Agri Platform — Demo Integration
+    <span class="badge">SDK v1.0 · Experimental</span>
+    <span class="conn-dot" id="connDot"></span>
+  </header>
+
+  <!-- Sidebar nav (simulates parent platform pages) -->
+  <nav>
+    <div class="section-label">Navigation</div>
+    <a class="active" onclick="showPage('home', this)" data-page="home">
+      <span class="icon">🏠</span> Home
+    </a>
+    <a onclick="showPage('weather', this)" data-page="weather">
+      <span class="icon">🌤️</span> Weather
+    </a>
+    <a onclick="showPage('market', this)" data-page="market">
+      <span class="icon">📈</span> Market Prices
+    </a>
+    <a onclick="showPage('disease', this)" data-page="disease">
+      <span class="icon">🔬</span> Crop Disease
+    </a>
+    <a onclick="showPage('advisory', this)" data-page="advisory">
+      <span class="icon">📋</span> Advisory
+    </a>
+    <div class="section-label" style="margin-top:12px">SDK Info</div>
+    <a onclick="showPage('integration', this)" data-page="integration">
+      <span class="icon">🔌</span> Integration Guide
+    </a>
+  </nav>
+
+  <!-- Main content area (parent platform pages) -->
+  <main>
+
+    <div class="page active" id="page-home">
+      <div class="page-header">Welcome to Agri Platform</div>
+      <div class="page-sub">Use the voice assistant on the right to navigate — speak in Hindi, Tamil, or any Indian language.</div>
+      <div class="stat-grid">
+        <div class="stat"><div class="value">22</div><div class="label">Languages</div></div>
+        <div class="stat"><div class="value">5</div><div class="label">Intent Types</div></div>
+        <div class="stat"><div class="value">~1s</div><div class="label">Avg Latency</div></div>
+      </div>
+      <div class="card">
+        <h3>Try saying...</h3>
+        <p style="font-size:13px;line-height:1.8;color:#374151">
+          🌤️ <b>"आज का मौसम कैसा रहेगा?"</b> → goes to Weather<br>
+          📈 <b>"गेहूं का भाव बताओ"</b> → goes to Market Prices<br>
+          🔬 <b>"मेरी टमाटर की पत्तियां पीली हो रही हैं"</b> → goes to Crop Disease<br>
+          📋 <b>"धान की सिंचाई कब करें?"</b> → goes to Advisory<br>
+          ❌ <b>"How do I fix my tractor?"</b> → graceful fallback
+        </p>
+      </div>
+    </div>
+
+    <div class="page" id="page-weather">
+      <div class="page-header">🌤️ Weather Forecast</div>
+      <div class="page-sub">Current conditions and forecast for your area</div>
+      <div class="card">
+        <h3>Today's Forecast</h3>
+        <div class="stat-grid">
+          <div class="stat"><div class="value">32°C</div><div class="label">Temperature</div></div>
+          <div class="stat"><div class="value">68%</div><div class="label">Humidity</div></div>
+          <div class="stat"><div class="value">0mm</div><div class="label">Rainfall</div></div>
+        </div>
+        <p style="font-size:13px;color:#374151">Partly cloudy. Good conditions for field work. No irrigation needed today.</p>
+      </div>
+    </div>
+
+    <div class="page" id="page-market">
+      <div class="page-header">📈 Market Prices</div>
+      <div class="page-sub">Live mandi prices across major markets</div>
+      <div class="card">
+        <h3>Today's Prices</h3>
+        <table style="width:100%;font-size:13px;border-collapse:collapse">
+          <tr style="background:var(--gray-light)">
+            <th style="padding:8px;text-align:left">Crop</th>
+            <th style="padding:8px;text-align:right">Min</th>
+            <th style="padding:8px;text-align:right">Max</th>
+            <th style="padding:8px;text-align:right">Modal</th>
+          </tr>
+          <tr><td style="padding:8px">Wheat</td><td style="padding:8px;text-align:right">₹2,200</td><td style="padding:8px;text-align:right">₹2,400</td><td style="padding:8px;text-align:right">₹2,300</td></tr>
+          <tr style="background:var(--gray-light)"><td style="padding:8px">Rice</td><td style="padding:8px;text-align:right">₹1,950</td><td style="padding:8px;text-align:right">₹2,100</td><td style="padding:8px;text-align:right">₹2,025</td></tr>
+          <tr><td style="padding:8px">Tomato</td><td style="padding:8px;text-align:right">₹800</td><td style="padding:8px;text-align:right">₹1,200</td><td style="padding:8px;text-align:right">₹1,000</td></tr>
+          <tr style="background:var(--gray-light)"><td style="padding:8px">Onion</td><td style="padding:8px;text-align:right">₹600</td><td style="padding:8px;text-align:right">₹900</td><td style="padding:8px;text-align:right">₹750</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="page" id="page-disease">
+      <div class="page-header">🔬 Crop Disease Check</div>
+      <div class="page-sub">Diagnose crop health issues</div>
+      <div class="card">
+        <h3>Common Issues This Season</h3>
+        <p style="font-size:13px;line-height:1.8;color:#374151">
+          🍅 <b>Tomato Early Blight</b> — Yellow-brown spots on older leaves<br>
+          🌾 <b>Wheat Rust</b> — Orange pustules on leaf surface<br>
+          🌿 <b>Rice Blast</b> — Diamond-shaped lesions on leaves<br>
+          🧅 <b>Onion Purple Blotch</b> — Purple spots with yellow halo
+        </p>
+      </div>
+    </div>
+
+    <div class="page" id="page-advisory">
+      <div class="page-header">📋 Farming Advisory</div>
+      <div class="page-sub">Expert recommendations for your crops</div>
+      <div class="card">
+        <h3>This Week's Advisory</h3>
+        <p style="font-size:13px;line-height:1.8;color:#374151">
+          💧 <b>Irrigation:</b> Kharif crops need standing water during vegetative stage.<br>
+          🌱 <b>Sowing:</b> Optimal window for late Kharif sowing closes in 2 weeks.<br>
+          🧪 <b>Fertilizer:</b> Apply second dose of urea for wheat at tillering stage.<br>
+          🐛 <b>Pest Alert:</b> Pink bollworm active in cotton belt — monitor closely.
+        </p>
+      </div>
+    </div>
+
+    <div class="page" id="page-integration">
+      <div class="page-header">🔌 SDK Integration Guide</div>
+      <div class="page-sub">How to embed AgriNav into any web application</div>
+      <div class="card">
+        <h3>Minimal Integration (3 steps)</h3>
+        <pre style="background:#0f172a;color:#e2e8f0;padding:16px;border-radius:8px;font-size:12px;overflow-x:auto;line-height:1.7">
+<span style="color:#7dd3fc">// Step 1: Import the SDK</span>
+import { AgriNavSDK } from './sdk/AgriNavSDK.js';
+
+<span style="color:#7dd3fc">// Step 2: Initialise with your platform config</span>
+const nav = new AgriNavSDK({
+  serverUrl:  'ws://localhost:4000',
+  platformId: 'crop_doctor',
+  lang:       'hi',
+
+  <span style="color:#86efac">// Step 3: Implement navigation callback</span>
+  onNavigate: (route, params) => {
+    router.push(route);       <span style="color:#64748b">// React Router / Next.js / any</span>
+  },
+  onClarify: (msg, suggestions) => {
+    showDialog(msg, suggestions);
+  },
+  onFallback: (msg) => {
+    showToast(msg);
+  }
+});
+
+<span style="color:#7dd3fc">// Send audio when user finishes speaking</span>
+nav.sendAudio(audioBlob, 'hi');
+        </pre>
+      </div>
+      <div class="card">
+        <h3>The platform never needs to know about:</h3>
+        <p style="font-size:13px;line-height:1.8;color:#374151">
+          ✅ Ollama or any LLM<br>
+          ✅ AI4Bharat IndicConformer<br>
+          ✅ Intent schemas or JSON validation<br>
+          ✅ FSM states or confidence thresholds<br>
+          ✅ The navigation engine internals<br><br>
+          It only implements <b>onNavigate()</b>, <b>onClarify()</b>, and <b>onFallback()</b>.
+        </p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Voice panel (right sidebar) -->
+  <div class="voice-panel">
+    <h2>🎙️ Voice Assistant</h2>
+
+    <select class="lang-select" id="langSelect">
+      <option value="hi">Hindi (हिंदी)</option>
+      <option value="ta">Tamil (தமிழ்)</option>
+      <option value="te">Telugu (తెలుగు)</option>
+      <option value="bn">Bengali (বাংলা)</option>
+      <option value="mr">Marathi (मराठी)</option>
+      <option value="gu">Gujarati (ગુજરાતી)</option>
+      <option value="kn">Kannada (ಕನ್ನಡ)</option>
+      <option value="ml">Malayalam (മലയാളം)</option>
+      <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+    </select>
+
+    <button id="micBtn" title="Hold to record">🎤</button>
+    <div id="statusText">Click mic to speak</div>
+
+    <div class="clarify-box" id="clarifyBox">
+      <p>⚠️ Did you mean...</p>
+      <div id="suggestionsContainer"></div>
+    </div>
+
+    <div style="font-size:11px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:0.06em">
+      Pipeline Log
+    </div>
+    <div class="log-box" id="logBox"></div>
+
+    <div id="perfPanel" style="display:none">
+      <div style="font-size:11px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
+        Last Query Performance
+      </div>
+      <div class="perf-row"><span>Total</span><span class="perf-val" id="perfTotal">—</span></div>
+      <div class="perf-row"><span>Intent</span><span class="perf-val" id="perfIntent">—</span></div>
+      <div class="perf-row"><span>Confidence</span><span class="perf-val" id="perfConf">—</span></div>
+    </div>
+  </div>
+
+  <script>
+    // ── Page navigation ───────────────────────────────────────
+
+    function showPage(pageId, linkEl) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+      document.getElementById('page-' + pageId).classList.add('active');
+      if (linkEl) linkEl.classList.add('active');
+    }
+
+    // ── Logger ────────────────────────────────────────────────
+
+    function log(msg, type = 'info') {
+      const box   = document.getElementById('logBox');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + type;
+      const time  = new Date().toLocaleTimeString('en', { hour12: false });
+      entry.textContent = `[${time}] ${msg}`;
+      box.appendChild(entry);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // ── SDK Integration ───────────────────────────────────────
+    //
+    //  This block IS the SDK integration.
+    //  In a real parent app this is all a developer writes.
+    //  The AgriNavSDK is loaded as an ES module from the SDK package.
+    //
+    //  Since this is a standalone HTML demo without a bundler,
+    //  we implement a lightweight inline version that communicates
+    //  with the server over HTTP (same protocol as the real SDK).
+
+    const SERVER = 'http://localhost:4000';
+    const WS_SERVER = 'ws://localhost:4000';
+    const PLATFORM_ID = 'demo_platform';
+    const SESSION_ID  = 'demo_' + Date.now();
+
+    // WebSocket for receiving pushed commands
+    let ws;
+    function connectWS() {
+      ws = new WebSocket(`${WS_SERVER}?sessionId=${SESSION_ID}&platformId=${PLATFORM_ID}`);
+
+      ws.onopen = () => {
+        document.getElementById('connDot').classList.add('connected');
+        log('Connected to navigation engine', 'success');
+      };
+      ws.onclose = () => {
+        document.getElementById('connDot').classList.remove('connected');
+        log('Disconnected — retrying in 3s...', 'warn');
+        setTimeout(connectWS, 3000);
+      };
+      ws.onerror = () => log('WebSocket error', 'error');
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'pong' || data.type === 'connected') return;
+        log('WS push received: ' + data.command?.type, 'cmd');
+      };
+    }
+    connectWS();
+
+    // ── onNavigate — the core callback ────────────────────────
+
+    function onNavigate(route, params) {
+      const routePageMap = {
+        '/weather':      'weather',
+        '/market':       'market',
+        '/disease-check':'disease',
+        '/disease':      'disease',
+        '/advisory':     'advisory',
+        '/prices':       'market',
+      };
+      const pageId = routePageMap[route];
+      if (pageId) {
+        const link = document.querySelector(`[data-page="${pageId}"]`);
+        showPage(pageId, link);
+        log(`Navigated to ${route}`, 'success');
+        if (params) log('Params: ' + JSON.stringify(params), 'info');
+      } else {
+        log(`Unknown route: ${route}`, 'warn');
+      }
+    }
+
+    function onClarify(message, suggestions) {
+      const box = document.getElementById('clarifyBox');
+      const container = document.getElementById('suggestionsContainer');
+      container.innerHTML = '';
+      suggestions.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'suggestion-btn';
+        btn.textContent = s;
+        btn.onclick = () => {
+          box.classList.remove('show');
+          document.getElementById('statusText').textContent = 'Click mic to speak';
+        };
+        container.appendChild(btn);
+      });
+      box.classList.add('show');
+      log('Clarification needed: ' + message, 'warn');
+    }
+
+    function onFallback(message) {
+      log('Fallback: ' + message, 'warn');
+      document.getElementById('statusText').textContent = message;
+    }
+
+    // ── Microphone + recording ────────────────────────────────
+
+    let mediaRecorder, audioChunks = [], recording = false;
+
+    const micBtn    = document.getElementById('micBtn');
+    const statusEl  = document.getElementById('statusText');
+
+    micBtn.onclick = async () => {
+      if (recording) {
+        mediaRecorder.stop();
+        return;
+      }
+
+      document.getElementById('clarifyBox').classList.remove('show');
+
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        log('Mic permission denied', 'error');
+        statusEl.textContent = 'Microphone permission denied';
+        return;
+      }
+
+      audioChunks   = [];
+      // Use browser-supported codec — webm is always available in Chrome/Edge
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : '';
+      mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+      mediaRecorder.onstop = async () => {
+        recording = false;
+        micBtn.classList.remove('recording');
+        micBtn.disabled = true;
+        statusEl.textContent = 'Processing...';
+        log('Audio captured, sending to pipeline...', 'info');
+
+        stream.getTracks().forEach(t => t.stop());
+
+        const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+        const ext       = (mediaRecorder.mimeType || '').includes('ogg') ? 'ogg' : 'webm';
+        const lang      = document.getElementById('langSelect').value;
+        const t0        = Date.now();
+
+        const form = new FormData();
+        form.append('audio',      audioBlob, `recording.${ext}`);
+        form.append('platformId', PLATFORM_ID);
+        form.append('sessionId',  SESSION_ID);
+        form.append('lang',       lang);
+
+        try {
+          const res  = await fetch(`${SERVER}/api/query`, { method: 'POST', body: form });
+          const data = await res.json();
+
+          const totalMs = Date.now() - t0;
+
+          if (!data.success) {
+            log('Pipeline error: ' + (data.error ?? 'unknown'), 'error');
+            statusEl.textContent = 'Error: ' + (data.error ?? 'Try again');
+            micBtn.disabled = false;
+            return;
+          }
+
+          const cmd = data.command;
+          log(`Transcript: "${data.transcript}"`, 'info');
+          log(`Intent: ${cmd.intent} | Confidence: ${(cmd.confidence * 100).toFixed(0)}%`, 'cmd');
+          log(`Command: ${cmd.command.type} ${cmd.command.route ?? cmd.command.action ?? ''}`, 'cmd');
+
+          // Show perf panel
+          document.getElementById('perfPanel').style.display = 'block';
+          document.getElementById('perfTotal').textContent   = totalMs + 'ms';
+          document.getElementById('perfIntent').textContent  = cmd.intent;
+          document.getElementById('perfConf').textContent    = (cmd.confidence * 100).toFixed(0) + '%';
+
+          // Fire the appropriate callback
+          switch (cmd.command.type) {
+            case 'NAVIGATE': onNavigate(cmd.command.route, cmd.command.params); break;
+            case 'CLARIFY':  onClarify(cmd.command.message, cmd.command.suggestions); break;
+            case 'FALLBACK': onFallback(cmd.command.message); break;
+          }
+
+          statusEl.textContent = `"${data.transcript}"`;
+
+        } catch (err) {
+          log('Network error: ' + err, 'error');
+          statusEl.textContent = 'Server unreachable. Is the engine running?';
+        }
+
+        micBtn.disabled = false;
+        micBtn.textContent = '🎤';
+      };
+
+      mediaRecorder.start();
+      recording = true;
+      micBtn.classList.add('recording');
+      micBtn.textContent = '⏹️';
+      statusEl.textContent = 'Recording... click to stop';
+      log('Recording started (' + document.getElementById('langSelect').options[document.getElementById('langSelect').selectedIndex].text + ')', 'info');
+    };
+
+    log('Demo platform initialised', 'success');
+    log('Server: ' + SERVER, 'info');
+  </script>
+</body>
+</html>

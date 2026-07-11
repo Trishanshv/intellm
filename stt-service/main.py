@@ -1,8 +1,35 @@
 import sys
 import os
-#import io
 import time
-import tempfile
+
+# ── Inject bundled ffmpeg into PATH before pydub loads ────────
+# imageio_ffmpeg ships its own ffmpeg binary — no system install needed
+import imageio_ffmpeg as _ioff
+_ffmpeg_exe = _ioff.get_ffmpeg_exe()
+_ffmpeg_dir = os.path.dirname(_ffmpeg_exe)
+# Prepend to PATH so pydub subprocess can find it
+os.environ["PATH"] = _ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+print(f"[STT] Using ffmpeg: {_ffmpeg_exe}")
+
+import io
+import subprocess
+import numpy as np
+import soundfile as sf  # must be before convert_audio
+
+def convert_audio(audio_bytes: bytes) -> np.ndarray:
+    cmd = [
+        _ffmpeg_exe, "-y",
+        "-i", "pipe:0",
+        "-ar", "16000",
+        "-ac", "1",
+        "-f", "wav",
+        "pipe:1"
+    ]
+    result = subprocess.run(cmd, input=audio_bytes, capture_output=True)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.decode())
+    audio_array, _ = sf.read(io.BytesIO(result.stdout))
+    return audio_array.astype("float32")
 
 MODEL_SNAPSHOT_PATH = os.path.expanduser(
     r"~\.cache\huggingface\hub\models--ai4bharat--indic-conformer-600m-multilingual\snapshots\e9b71b369c048e2c6b634d4c131061c34e441179"
@@ -11,14 +38,11 @@ sys.path.append(MODEL_SNAPSHOT_PATH)
 
 from model_onnx import IndicASRModel
 import torch
-import librosa
-import numpy as np
-import soundfile as sf
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-#    Constants  
+# ── Constants ─────────────────────────────────────────────────
 
 SAMPLE_RATE = 16000
 
@@ -27,7 +51,7 @@ SUPPORTED_LANGUAGES = [
     "as", "ur", "sa", "ne", "sd", "kok", "mai", "mni", "brx", "doi", "sat", "ks"
 ]
 
-#    App setup  
+# ── App setup ─────────────────────────────────────────────────
 
 app = FastAPI(
     title="Agri Platform STT Service",
@@ -35,16 +59,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Allow requests from the Node.js orchestrator and Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:4000"],
+    allow_origins=["*"],  # allow all origins during development
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
-#    Model loading at startup                                   
-# Loaded ONCE when uvicorn starts — never reloaded per request
+# ── Model loading at startup ──────────────────────────────────
 
 model = None
 
@@ -59,7 +81,7 @@ async def load_model():
         print(f"CRITICAL: Model failed to load: {e}")
         raise e
 
-#    Health check                                               
+# ── Health check ──────────────────────────────────────────────
 
 @app.get("/health")
 def health():
@@ -67,14 +89,13 @@ def health():
         return {"status": "error", "model": "not loaded"}
     return {"status": "ok", "model": "loaded", "supported_languages": SUPPORTED_LANGUAGES}
 
-#    Transcribe endpoint                                        
+# ── Transcribe endpoint ───────────────────────────────────────
 
 @app.post("/transcribe")
 async def transcribe(
     audio: UploadFile = File(...),
     lang: str = Form(default="hi")
 ):
-    # Validate language code
     if lang not in SUPPORTED_LANGUAGES:
         raise HTTPException(
             status_code=400,
@@ -84,42 +105,23 @@ async def transcribe(
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded yet. Try again in a few seconds.")
 
-    # Read uploaded audio bytes
     audio_bytes = await audio.read()
     if len(audio_bytes) == 0:
         raise HTTPException(status_code=400, detail="Empty audio file received.")
 
-    # Save to a temp file so librosa can read it (librosa needs a file path or file-like object, not raw bytes directly)
-    suffix = os.path.splitext(audio.filename or "audio.wav")[1] or ".wav"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp.write(audio_bytes)
-        tmp_path = tmp.name
-
     try:
-        # Load and resample to 16kHz mono — required by IndicConformer
-        audio_array, sr = librosa.load(tmp_path, sr=SAMPLE_RATE, mono=True)
+        audio_array = convert_audio(audio_bytes)
     except Exception as e:
-        os.unlink(tmp_path)
-        raise HTTPException(
-            status_code=422,
-            detail=f"Could not read audio file. Make sure it is a valid audio format. Error: {str(e)}"
-        )
-    finally:
-        # Always clean up temp file
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+        raise HTTPException(status_code=422, detail=f"Audio conversion failed: {str(e)}")
 
-    # Reject clips that are too short or too long
     duration = len(audio_array) / SAMPLE_RATE
     if duration < 0.5:
         raise HTTPException(status_code=400, detail="Audio too short. Minimum 0.5 seconds.")
     if duration > 30.0:
         raise HTTPException(status_code=400, detail="Audio too long. Maximum 30 seconds.")
 
-    # Convert
     wav_tensor = torch.tensor(audio_array).unsqueeze(0)
 
-    # Run inference
     try:
         t0 = time.time()
         transcription = model.forward(wav_tensor, lang=lang, decoding="ctc")

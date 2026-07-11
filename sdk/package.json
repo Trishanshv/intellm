@@ -1,0 +1,15 @@
+{
+  "name": "agri-nav-sdk",
+  "version": "1.0.0",
+  "description": "AgriNav SDK — embed voice navigation into any web platform",
+  "type": "module",
+  "main": "src/AgriNavSDK.ts",
+  "scripts": {
+    "typecheck": "npx tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx":         "^4.10.0",
+    "typescript":  "^5.4.0"
+  }
+}

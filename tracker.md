@@ -128,32 +128,29 @@
 
 ---
 
-## 🔲 Phase 5 — Next.js Demo Shell
+## 🔲 Phase 5 — Documentation & README
+### What needs to do
 
-**Goal**: Build a fake parent platform in Next.js to demonstrate how the SDK integrates and how navigation commands are handled visually.
-
-### What needs to be built
-
-- [ ] `frontend/` — `npx create-next-app@latest` with TypeScript + Tailwind
-- [ ] Session state for current page, last 3 turns, and navigation events
-- [ ] Mic/text input demo that sends audio or text into the navigation engine
-- [ ] Response panel showing the emitted command and resolved route
-- [ ] Demo route handling to simulate parent app navigation
-- [ ] Error states for STT, registry miss, and low-confidence clarification
+- [ ] Architecture overview with diagram
+- [ ] How to run the full stack (all 3 services)
+- [ ] How a developer integrates the SDK into any parent app
+- [ ] API reference for all endpoints (/api/query, /api/health, /api/register)
+- [ ] SDK public API reference (AgriNavSDK config, methods, callbacks)
+- [ ] Performance benchmarks (STT latency, LLM latency, end-to-end latency)
+- [ ] Design patterns used and why
+- [ ] Known limitations and future work
+- [ ] Folder structure explanation
 
 ---
 
-## 🔲 Phase 6 — Live Crop Doctor Integration
+## 🔲 Phase 6 — Performance Measurement
 
-**Goal**: Connect the SDK and navigation engine to the real Crop Doctor platform as the first live parent app integration.
+### What needs to do
 
-### What needs to be built
-
-- [ ] Crop Doctor integration adapter
-- [ ] Real route/action registration against Crop Doctor pages
-- [ ] End-to-end voice navigation flow in the live platform
-- [ ] Production confidence tuning and fallback handling
-- [ ] Integration validation checklist and deployment notes
+- [ ]Build a small test script that runs 20 queries end-to-end through the full live stack (audio → STT → LLM → engine → command)
+- [ ]Records per-stage latency: STT ms, LLM ms, engine ms, total ms
+- [ ]Prints a benchmark report table
+- [ ]Results get pasted directly into the README as the performance section
 
 ---
 
@@ -177,7 +174,7 @@ inteLLm/
 │   └── runPipeline.ts           ✅ 20-query test suite
 ├── stt-service/                 ✅ Phase 2 — FastAPI microservice
 │   ├── main.py                  ✅ FastAPI app + endpoints
-│   ├── requirements.txt          ✅ dependencies pinned
+│   ├── requirements.txt         ✅ dependencies pinned
 │   ├── test-model1.py           ✅ model load test
 │   ├── test-model2.py           ✅ ONNX inference test
 │   ├── test-model3.py           ✅ end-to-end pipeline test
@@ -189,16 +186,6 @@ inteLLm/
 ├── sdk/                         🔲 Phase 4 — connector package not created yet
 └── frontend/                    🔲 Phase 5 — demo shell not created yet
 ```
-
----
-
-## 🧪 Test Results Log
-
-> Fill this in after each `npm test` run.
-
-| Date | Model | Passed / Total | Accuracy | Avg Latency | Notes |
-|------|-------|---------------|----------|-------------|-------|
-| 2026-06-09 | llama3.1:8b | 20 / 20 | 100.0% | 1550ms | All intents detected correctly; edge cases pass; ready for Phase 2 |
 
 ---
 

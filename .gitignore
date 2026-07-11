@@ -83,3 +83,12 @@ MANIFEST
 # Misc
 .cache/
 out/
+
+# STT service — test & debug files (not needed in repo)
+stt-service/test.wav
+stt-service/test-model1.py
+stt-service/test-model2.py
+stt-service/test-model3.py
+stt-service/record_test.py
+stt-service/reccord.py
+*.wav
