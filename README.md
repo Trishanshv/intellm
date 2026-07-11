@@ -120,9 +120,14 @@ inteLLm/
 │   └── tsconfig.json
 ├── tests/
 │   └── runPipeline.ts      ← 20-query test suite (Hindi + English + Hinglish + edge cases)
-├── stt_service/            ← [Phase 2] Python FastAPI STT microservice
-├── server/                 ← [Phase 3] Express orchestrator
-├── frontend/               ← [Phase 4] Next.js + Tailwind frontend
+├── stt-service/            ← Python FastAPI STT microservice
+│   └── main.py             ← Change HuggingFace model here (see How to Run)
+├── server/                 ← Express orchestrator + WebSocket server
+│   └── src/
+│       ├── index.ts        ← Change Ollama model here (see How to Run)
+│       └── services/intentService.ts
+├── sdk/                    ← Embeddable JS connector SDK
+│   └── demo/index.html     ← Open at http://localhost:4000/demo
 ├── tracker.md              ← Build progress & what's left
 ├── PROJECT_ARCHITECTURE.md ← Full architecture reference
 └── package.json
@@ -130,107 +135,123 @@ inteLLm/
 
 ---
 
-## How to Run — Phase 1 (Intent Pipeline, what's working now)
+## How to Run — Full Stack (Phases 1–4, working now)
 
-Phase 1 is self-contained: pure Node.js, no audio, no Python. It validates that the Ollama → schema-constrained JSON pipeline works before the voice layer is added.
+The full pipeline needs **3 terminals** running simultaneously.
 
 ### Prerequisites
 
-**1. Node.js v20+**
+| Tool | Version | Install |
+|------|---------|--------|
+| Node.js | v20+ | https://nodejs.org |
+| Python | 3.10+ | https://python.org |
+| Ollama | latest | https://ollama.com |
+
+---
+
+### Step 1 — Pull the LLM (one time)
+
 ```bash
-node --version   # must be v20+
-```
-
-**2. Ollama**
-
-Download from [https://ollama.com](https://ollama.com) (Windows, Mac, Linux all supported).
-
-```bash
-# Start the Ollama server (keep this terminal open)
-ollama serve
-
-# In a new terminal — pull the model (~4.7 GB, one-time download)
+# Pull the default model (~4.7 GB)
 ollama pull llama3.1:8b
 ```
 
-> **Low-spec machine?**  
-> Use `ollama pull llama3.2:3b` (~2 GB, faster). Then set `OLLAMA_MODEL=llama3.2:3b` in your environment, or edit the constant in `src/intentExtractor.ts`.  
-> Alternatively, `qwen2.5:7b` is recommended for better multilingual accuracy.
+> **Want to change the model?** Open [`server/src/services/intentService.ts`](./server/src/services/intentService.ts) and look for the `model:` field near the top. Change `"llama3.1:8b"` to any model you've pulled locally (e.g. `"qwen2.5:7b"`, `"llama3.2:3b"`).
+>
+> Low-spec machine? `llama3.2:3b` (~2 GB) is faster. `qwen2.5:7b` gives better multilingual accuracy for Indian languages.
 
-**3. Install Node dependencies**
+---
+
+### Step 2 — Set up the STT service (one time)
+
 ```bash
+cd stt-service
+
+# Activate the virtual environment (create it first if needed)
+python -m venv ../venv
+..\ venv\Scripts\Activate.ps1    # Windows PowerShell
+# source ../venv/bin/activate    # Mac / Linux
+
+pip install -r requirements.txt
+```
+
+On first run, the AI4Bharat IndicConformer model (~1–2 GB) will be downloaded from HuggingFace automatically.
+
+> **Want to change the STT model?** Open [`stt-service/main.py`](./stt-service/main.py) and find:
+> ```python
+> model = IndicASRModel.from_pretrained("ai4bharat/indic-conformer-600m-multilingual")
+> ```
+> Replace the model ID with any compatible HuggingFace model. The 600M param ONNX variant is used here for speed on CPU.
+
+---
+
+### Step 3 — Install server dependencies (one time)
+
+```bash
+cd server
 npm install
 ```
 
-### Run the test suite
+---
+
+### Running the stack
+
+Open **3 terminals** and run one command in each:
 
 ```bash
-# Make sure `ollama serve` is running in another terminal first!
+# Terminal 1 — Ollama (the LLM brain)
+ollama serve
+
+# Terminal 2 — STT service (speech-to-text)
+cd stt-service
+..\ venv\Scripts\Activate.ps1    # activate venv first
+uvicorn main:app --host 0.0.0.0 --port 8000
+
+# Terminal 3 — Navigation engine + SDK demo server
+cd server
+npm run dev
+```
+
+Then open **Chrome** (not Firefox — mic access is more reliable) and go to:
+
+```
+http://localhost:4000/demo/index.html
+```
+
+Click the mic button, speak in Hindi or any Indian language, and watch the page navigate automatically.
+
+---
+
+### How to Run — Phase 1 only (Intent Pipeline, no audio)
+
+If you just want to test the intent extraction without audio:
+
+```bash
+# Requires only: ollama serve running
+npm install
 npm test
 ```
 
 Expected output:
 ```
-╔════════════════════════════════════════╗
-║   AGRI PLATFORM — Phase 1 Test Runner  ║
-╚════════════════════════════════════════╝
-
-Checking Ollama health...
 ✓ Ollama running · model: llama3.1:8b
 
-  आज का मौसम कैसा रहेगा?                              ✓ [weather]       843ms
-  Will it rain tomorrow in my village?               ✓ [weather]       612ms
-  मुझे दिल्ली में गेहूं का भाव बताओ                  ✓ [market_price]  731ms
+  आज का मौसम कैसा रहेगा?                    ✓ [weather]       843ms
+  गेहूं का भाव बताओ                          ✓ [market_price]  731ms
   ...
 
-── Summary ──────────────────────────────────────
-  Total:    20
-  Passed:   18
-  Failed:   2
-  Accuracy: 90.0%
-  Avg latency: 680ms
-
-✓ Pipeline looks healthy. Ready for Phase 2 (STT integration).
+  Total: 20 · Passed: 20 · Accuracy: 100.0% · Avg latency: 1550ms
 ```
 
-**Target: ≥ 85% accuracy before moving to Phase 2.**
+---
 
 ### Environment variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL |
-| `OLLAMA_MODEL` | `llama3.1:8b` | Model to use |
-
----
-
-## How to Run — Phase 2 (STT Service) `[not built yet]`
-
-```bash
-# Will be in stt_service/ — Python FastAPI wrapping IndicConformer
-cd stt_service
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
----
-
-## How to Run — Full Stack `[Phase 3 + 4, not built yet]`
-
-```bash
-# Terminal 1 — Ollama
-ollama serve
-
-# Terminal 2 — Python STT microservice
-cd stt_service && uvicorn main:app --port 8000
-
-# Terminal 3 — Express orchestrator
-cd server && npm run dev
-
-# Terminal 4 — Next.js frontend
-cd frontend && npm run dev
-# Open http://localhost:3000
-```
+| `OLLAMA_MODEL` | `llama3.1:8b` | Model to use for intent extraction |
+| `STT_URL` | `http://localhost:8000` | STT microservice URL |
 
 ---
 
@@ -299,6 +320,70 @@ Output: {"intent":"soil_test","entities":{"location":"local KVK"}}
 All 22 officially recognized Indian languages via AI4Bharat IndicConformer-600M:
 
 Hindi · Tamil · Telugu · Kannada · Malayalam · Marathi · Gujarati · Bengali · Punjabi · Urdu · Odia · Assamese · Maithili · Konkani · Manipuri · Nepali · Santali · Sindhi · Sanskrit · Kashmiri · Dogri · Bodo
+
+---
+
+## Performance
+
+Measured on a CPU-only machine (no GPU), using `llama3.1:8b` and IndicConformer-600M ONNX.
+
+| Stage | Avg latency |
+|-------|------------|
+| STT (IndicConformer-600M, ONNX, CPU) | ~500–800ms |
+| Intent extraction (llama3.1:8b, Ollama) | ~1–3s |
+| Engine + routing | <10ms |
+| **End-to-end (speak → page navigate)** | **~1s (fast) to ~4.7s (cold)** |
+
+**Live query example (observed):**
+
+```
+Intent:     market_price
+Confidence: 90%
+Total time: 4704ms
+```
+
+Average across normal queries: **~1s** once models are warm. First query after startup is slower because model weights are paged into RAM.
+
+> Cold start (first query after `uvicorn` boots) takes 3–5s as the model loads. Subsequent queries are consistently ~1s.
+
+---
+
+## Why Split Architecture? STT + LLM vs. One Model for Both
+
+One obvious question: *why not just use a single large LLM for both speech-to-text and intent extraction?*
+
+### What this project does
+
+```
+Audio → [IndicConformer 600M] → text → [llama3.1:8b] → structured intent
+          ↑ specialist ASR model            ↑ specialist reasoning model
+```
+
+### What a single-LLM approach would look like
+
+```
+Audio → [Sarvam AI] → structured intent
+         one model handles everything
+```
+
+### Why the split wins for this use case
+
+| Dimension | Split (this project) | Single LLM |
+|-----------|---------------------|------------|
+| **Multilingual ASR** | IndicConformer is purpose-built for 22 Indian languages, trained on 10,000+ hours of Indian speech data | General-purpose audio LLMs are primarily trained on English and European languages — Indian language accuracy drops significantly |
+| **Fully offline** | Both models run locally with no API calls | Most capable audio LLMs require cloud APIs — adds cost, latency, and data privacy risk |
+| **Latency** | Each model is small and specialized (~600M + 8B params) | A single model capable of both tasks would need to be much larger (70B+ range) to match quality — much slower on CPU |
+| **Replaceability** | Swap the STT model independently (e.g. Whisper-large for English-heavy use) without changing the LLM, or swap the LLM without touching STT | Changing one aspect means swapping the entire model |
+| **Cost** | Runs free, forever, on any laptop | Cloud audio LLMs cost per minute of audio |
+
+### Where a single LLM would be better
+
+- **Simpler deployment** — one model to download, one service to run
+- **Better for English** — outperform this stack on English-only queries
+- **Less engineering** — no inter-service HTTP calls, no format conversion
+- **Conversational context** — a single model can naturally connect what it heard to what it understood, potentially better at accent-heavy speech where the "text" intermediate step loses nuance
+
+The split architecture uses **the best specialist for each job** rather than a generalist that's mediocre at both.
 
 ---
 
