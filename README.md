@@ -5,6 +5,30 @@
 
 ---
 
+## 📚 Documentation Hub
+
+> Quick links to navigate the project. Start here, go deep wherever you need.
+
+| Document | What's inside |
+|---|---|
+| **[README.md](./README.md)** ← you are here | Quick start, how to run, pipeline overview, SDK integration guide |
+| **[DEVELOPER.md](./DEVELOPER.md)** | Full architecture, API reference, SDK class docs, design patterns, folder structure, limitations |
+| **[tests/benchmark.ts](./tests/benchmark.ts)** | Automated end-to-end latency & accuracy benchmark (run with `npm run benchmark`) |
+| **[stt-service/README.md](./stt-service/README.md)** | Python STT microservice setup, `/transcribe` API, language codes |
+| **[tracker.md](./tracker.md)** | Phase-by-phase build progress and task checklists |
+| **[PROJECT_ARCHITECTURE.md](./PROJECT_ARCHITECTURE.md)** | Original architecture overview (historical reference) |
+
+### Jump to section in this file
+
+- [Architecture & Pipeline](#architecture--pipeline)
+- [Project Structure](#project-structure)
+- [How to Run — Full Stack](#how-to-run--full-stack-phases-14-working-now)
+- [SDK Integration Guide](#intellm-sdk--integration-guide)
+- [Performance](#performance)
+- [API Reference](#api-reference)
+
+
+
 ## What is this?
 
 **inteLLm** is a multilingual, voice-first agricultural assistant built entirely on open-source, MIT-licensed components. A farmer can speak a query in Hindi, Tamil, Bengali, Marathi, or any of the 22 officially recognized Indian languages. The system transcribes their voice, extracts a structured intent, and routes it to the right data source — all running locally, with no API keys and no usage costs.

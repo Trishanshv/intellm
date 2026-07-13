@@ -1,7 +1,7 @@
 # inteLLm — Project Progress Tracker
 
 > **Last updated**: July 13, 2026  
-> **Status**: Phase 4 complete · GitHub pushed · Phase 5 next
+> **Status**: Phase 5 complete · Phase 6 next
 
 ---
 
@@ -13,7 +13,7 @@
 | **Phase 2** | STT Microservice (AI4Bharat IndicConformer + FastAPI) | ✅ Complete |
 | **Phase 3** | Navigation Engine Core (Node.js + Express + FSM + middleware + registry + commands) | ✅ Complete |
 | **Phase 4** | SDK / Connector (embeddable JS integration layer for parent apps) | ✅ Complete |
-| **Phase 5** | Documentation & Performance Benchmarking | 🔲 Not started |
+| **Phase 5** | Documentation & Performance Benchmarking | ✅ Complete |
 | **Phase 6** | Live Crop Doctor Integration (real parent platform demo) | 🔲 Not started |
 
 ---
@@ -140,19 +140,17 @@
 
 ---
 
-## 🔲 Phase 5 — Documentation & README
+## ✅ Phase 5 — Documentation & Performance Benchmarking
 
-### What needs to be done
+**Status**: ✅ **COMPLETE**
 
-- [ ] Architecture overview with diagram
-- [ ] How to run the full stack (all 3 services)
-- [ ] How a developer integrates the SDK into any parent app
-- [ ] API reference for all endpoints (`/api/query`, `/api/health`, `/api/register`)
-- [ ] SDK public API reference (`IntLLM` / `IntLLMConfig`, methods, callbacks)
-- [ ] Performance benchmarks (STT latency, LLM latency, end-to-end latency)
-- [ ] Design patterns used and why
-- [ ] Known limitations and future work
-- [ ] Folder structure explanation
+### What's done
+
+- [x] `DEVELOPER.md` — comprehensive developer reference: full architecture diagram (with SDK + WebSocket layer), per-component deep-dive (STT, FSM, Registry, ConfidenceFilter, NavEngine, SDK, WSClient), complete API reference for all 3 HTTP endpoints + WebSocket protocol, full SDK public API docs (`IntLLM` class, `IntLLMConfig`, all callbacks + methods), design patterns section (6 patterns), performance table, limitations, annotated folder structure
+- [x] `tests/benchmark.ts` — automated end-to-end benchmark: sends 20 queries (Hindi, English, Hinglish, all 5 intent types, edge cases) through the live stack, records per-query latency, prints color-coded results table, computes min/avg/median/p95/max statistics, outputs a paste-ready Markdown block for README
+- [x] `README.md` — added Documentation Hub navigation section at top linking all docs; no content removed
+- [x] `package.json` — added `npm run benchmark` script
+- [x] `tracker.md` — updated to reflect completion
 
 ---
 
@@ -171,10 +169,11 @@
 
 ```
 inteLLm/
-├── README.md                    ✅ full pipeline + how to run
-├── PROJECT_ARCHITECTURE.md      ✅ full architecture reference
+├── README.md                    ✅ navigation hub + quick start + SDK guide
+├── DEVELOPER.md                 ✅ Phase 5 — full developer reference
+├── PROJECT_ARCHITECTURE.md      ✅ original architecture overview
 ├── tracker.md                   ✅ THIS FILE
-├── package.json                 ✅ npm test wired
+├── package.json                 ✅ npm test + npm run benchmark
 ├── .gitignore                   ✅ covers venv, node_modules, .cache, test files
 ├── .gitattributes               ✅ LF line endings
 ├── src/                         ✅ Phase 1 — intent extraction
@@ -183,7 +182,8 @@ inteLLm/
 │   ├── adapters.ts
 │   └── router.ts
 ├── tests/
-│   └── runPipeline.ts           ✅ 20-query test suite
+│   ├── runPipeline.ts           ✅ 20-query intent accuracy test suite
+│   └── benchmark.ts             ✅ Phase 5 — end-to-end latency benchmark
 ├── stt-service/                 ✅ Phase 2 — FastAPI STT microservice
 │   ├── main.py                  ✅ FastAPI app + imageio-ffmpeg audio decode
 │   ├── requirements.txt         ✅ dependencies pinned
