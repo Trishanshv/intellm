@@ -1,11 +1,11 @@
 // ============================================================
-//  AGRI NAV SDK — Main Class
+//  IntLLM SDK — Main Class
 //
 //  This is the ENTIRE public API surface of the SDK.
 //  A parent app developer only ever imports and uses this class.
 //
 //  Usage:
-//    const nav = new AgriNavSDK({ ...config });
+//    const nav = new IntLLM({ ...config });
 //    nav.sendAudio(audioBlob, "hi");
 //    nav.disconnect();
 //
@@ -19,19 +19,19 @@
 
 import { WSClient }                       from "./wsClient.js";
 import type {
-  AgriNavSDKConfig,
+  IntLLMConfig,
   NavigationCommand,
   SDKState,
 }                                         from "./types.js";
 
-export class AgriNavSDK {
-  private config:    AgriNavSDKConfig;
+export class IntLLM {
+  private config:    IntLLMConfig;
   private wsClient:  WSClient;
   private sessionId: string;
   private state:     SDKState = "disconnected";
   private httpBase:  string;  // HTTP base URL derived from ws URL
 
-  constructor(config: AgriNavSDKConfig) {
+  constructor(config: IntLLMConfig) {
     this.config    = config;
     this.sessionId = config.sessionId ?? `sdk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
@@ -69,7 +69,7 @@ export class AgriNavSDK {
   // lang      — BCP-47 language code, e.g. "hi", "ta", "bn"
   async sendAudio(audioBlob: Blob, lang?: string): Promise<void> {
     if (this.state === "processing") {
-      console.warn("[AgriNavSDK] Already processing. Please wait.");
+      console.warn("[IntLLM] Already processing. Please wait.");
       return;
     }
 
@@ -161,7 +161,7 @@ export class AgriNavSDK {
           this.config.onClarify(cmd.command.message, cmd.command.suggestions);
         } else {
           // Default: log to console if parent app didn't implement onClarify
-          console.info("[AgriNavSDK] Clarification needed:", cmd.command.message);
+          console.info("[IntLLM] Clarification needed:", cmd.command.message);
         }
         break;
 
@@ -175,7 +175,7 @@ export class AgriNavSDK {
     if (this.config.onFallback) {
       this.config.onFallback(message);
     } else {
-      console.warn("[AgriNavSDK] Fallback:", message);
+      console.warn("[IntLLM] Fallback:", message);
     }
   }
 
@@ -186,7 +186,7 @@ export class AgriNavSDK {
 
 // Re-export types so parent apps only need one import
 export type {
-  AgriNavSDKConfig,
+  IntLLMConfig,
   NavigationCommand,
   SDKState,
   NavigatePayload,

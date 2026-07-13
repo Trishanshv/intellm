@@ -393,6 +393,347 @@ See [`tracker.md`](./tracker.md) for the full phase-by-phase progress tracker wi
 
 ---
 
+## IntLLM SDK — Integration Guide
+
+How to embed voice navigation into any existing web application.
+This guide covers vanilla HTML, React, and Next.js integrations.
+
+---
+
+### How it works (30 second overview)
+
+Your platform never talks to the AI models directly.
+It only talks to the IntLLM SDK, which handles everything else.
+
+```
+Your Platform
+     │
+     │  1. user speaks
+     ▼
+  IntLLM SDK  ──────────►  Navigation Engine (port 4000)
+     │                            │
+     │                            ├── STT Service (port 8000)
+     │                            ├── Ollama LLM (port 11434)
+     │                            └── Intent Registry
+     │
+     │  2. SDK receives NavigationCommand
+     ▼
+Your Platform's router runs  →  correct page opens
+```
+
+Your platform implements exactly **3 callbacks**:
+- `onNavigate(route, params)` — navigate to a page
+- `onClarify(message, suggestions)` — show a clarification prompt
+- `onFallback(message)` — show an error/unsupported message
+
+---
+
+### Step 1 — Register your platform's intents
+
+Before your platform can receive navigation commands, the engine needs to know what intents map to which routes in YOUR application.
+
+Send a POST request to the engine at startup:
+
+```javascript
+await fetch("http://localhost:4000/api/register", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    platformId:  "your_platform_id",
+    displayName: "Your App Name",
+    baseUrl:     "http://your-app.com",
+    intents: [
+      {
+        intentName:       "weather",
+        platformId:       "your_platform_id",
+        description:      "Navigate to weather page",
+        command:          { type: "NAVIGATE", route: "/weather" },
+        examplePhrases:   ["show weather", "what is the weather"],
+        requiredEntities: [],
+        confidenceMin:    0.75
+      },
+      {
+        intentName:       "market_price",
+        platformId:       "your_platform_id",
+        description:      "Navigate to market prices page",
+        command:          { type: "NAVIGATE", route: "/prices" },
+        examplePhrases:   ["show prices", "market rate"],
+        requiredEntities: ["crop"],
+        confidenceMin:    0.75
+      },
+      {
+        intentName:       "unsupported",
+        platformId:       "your_platform_id",
+        description:      "Fallback for unrecognised queries",
+        command:          { type: "FALLBACK", message: "I can help you navigate this platform." },
+        examplePhrases:   [],
+        requiredEntities: [],
+        confidenceMin:    0.0
+      }
+    ]
+  })
+});
+```
+
+**Supported intent names** (must match LLM output exactly):
+
+| Intent name | When it fires |
+|---|---|
+| `weather` | User asks about weather/forecast |
+| `market_price` | User asks about crop/commodity prices |
+| `crop_disease` | User asks about crop health/disease |
+| `advisory` | User asks for farming advice |
+| `unsupported` | Query doesn't match any intent |
+
+---
+
+### Step 2 — Add a mic button to your UI
+
+```html
+<button id="micBtn">🎤 Speak</button>
+```
+
+---
+
+### Step 3 — Integrate the SDK
+
+#### Option A — Vanilla HTML / JavaScript
+
+```html
+<script type="module">
+  // This is ALL your platform needs to write
+
+  const nav = new IntLLM({
+    serverUrl:  "ws://localhost:4000",
+    platformId: "your_platform_id",
+    lang:       "hi",
+
+    onNavigate: (route, params) => {
+      window.location.href = route;
+      // With params: window.location.href = route + "?" + new URLSearchParams(params);
+    },
+
+    onClarify: (message, suggestions) => {
+      console.log("Clarification needed:", message, suggestions);
+    },
+
+    onFallback: (message) => {
+      alert(message);
+    },
+
+    onConnected:    () => console.log("Voice assistant ready"),
+    onDisconnected: () => console.log("Voice assistant offline"),
+    onProcessing:   () => document.getElementById("micBtn").textContent = "⏳",
+    onIdle:         () => document.getElementById("micBtn").textContent = "🎤 Speak",
+  });
+
+  let mediaRecorder, chunks = [], recording = false;
+
+  document.getElementById("micBtn").onclick = async () => {
+    if (recording) { mediaRecorder.stop(); recording = false; return; }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    chunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: "audio/webm" });
+      await nav.sendAudio(blob, "hi");
+      stream.getTracks().forEach(t => t.stop());
+    };
+    mediaRecorder.start();
+    recording = true;
+  };
+</script>
+```
+
+---
+
+#### Option B — React
+
+```jsx
+// VoiceButton.jsx — drop this component anywhere in your React app
+import { useEffect, useRef, useState } from "react";
+import { IntLLM } from "./sdk/AgriNavSDK";   // file is AgriNavSDK.ts, class is IntLLM
+import { useNavigate } from "react-router-dom";
+
+export function VoiceButton({ platformId = "your_platform_id", lang = "hi" }) {
+  const navigate    = useNavigate();
+  const sdkRef      = useRef(null);
+  const recorderRef = useRef(null);
+  const [recording, setRecording] = useState(false);
+  const [status, setStatus]       = useState("idle");
+
+  useEffect(() => {
+    sdkRef.current = new IntLLM({
+      serverUrl:  "ws://localhost:4000",
+      platformId,
+      lang,
+      onNavigate:   (route, params) => navigate(params ? `${route}?${new URLSearchParams(params)}` : route),
+      onClarify:    (message, suggestions) => console.log("Clarify:", message, suggestions),
+      onFallback:   (message) => { setStatus("error"); console.warn("Fallback:", message); },
+      onProcessing: () => setStatus("processing"),
+      onIdle:       () => setStatus("idle"),
+    });
+    return () => sdkRef.current?.disconnect();
+  }, []);
+
+  const handleClick = async () => {
+    if (recording) { recorderRef.current?.stop(); setRecording(false); return; }
+    const stream  = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const chunks  = [];
+    const recorder = new MediaRecorder(stream);
+    recorderRef.current = recorder;
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.onstop = async () => {
+      await sdkRef.current.sendAudio(new Blob(chunks, { type: "audio/webm" }), lang);
+      stream.getTracks().forEach(t => t.stop());
+    };
+    recorder.start();
+    setRecording(true);
+  };
+
+  return (
+    <button onClick={handleClick} disabled={status === "processing"}
+      style={{ background: recording ? "#dc2626" : "#16a34a", color: "white",
+               border: "none", borderRadius: "50%", width: 56, height: 56, fontSize: 22 }}>
+      {status === "processing" ? "⏳" : recording ? "⏹️" : "🎤"}
+    </button>
+  );
+}
+// Usage: <VoiceButton platformId="your_platform_id" lang="hi" />
+```
+
+---
+
+#### Option C — Next.js (App Router)
+
+```tsx
+// components/VoiceButton.tsx
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { IntLLM } from "@/sdk/AgriNavSDK";
+
+export function VoiceButton({ platformId }: { platformId: string }) {
+  const router  = useRouter();
+  const sdkRef  = useRef<IntLLM | null>(null);
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    sdkRef.current = new IntLLM({
+      serverUrl:  "ws://localhost:4000",
+      platformId,
+      lang:       "hi",
+      onNavigate: (route, params) =>
+        router.push(params ? `${route}?${new URLSearchParams(params)}` : route),
+      onClarify:  (msg, suggestions) => console.log(msg, suggestions),
+      onFallback: (msg) => console.warn(msg),
+    });
+    return () => sdkRef.current?.disconnect();
+  }, []);
+
+  const handleMic = async () => {
+    if (active) return;
+    setActive(true);
+    const stream   = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const chunks:  Blob[] = [];
+    const recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.onstop = async () => {
+      await sdkRef.current?.sendAudio(new Blob(chunks, { type: "audio/webm" }), "hi");
+      stream.getTracks().forEach(t => t.stop());
+      setActive(false);
+    };
+    recorder.start();
+    setTimeout(() => recorder.stop(), 5000); // auto-stop after 5s
+  };
+
+  return <button onClick={handleMic} disabled={active}>{active ? "⏳ Listening..." : "🎤 Speak"}</button>;
+}
+// Usage in any page.tsx: <VoiceButton platformId="your_platform_id" />
+```
+
+---
+
+### Step 4 — Run all 3 services
+
+```powershell
+# Terminal 1 — LLM
+ollama serve
+
+# Terminal 2 — STT
+cd stt-service && venv\Scripts\activate && uvicorn main:app --host 0.0.0.0 --port 8000
+
+# Terminal 3 — Navigation Engine
+cd server && npm run dev
+```
+
+---
+
+### Supported languages
+
+| Language | Code | Language | Code |
+|---|---|---|---|
+| Hindi | `hi` | Tamil | `ta` |
+| Telugu | `te` | Kannada | `kn` |
+| Malayalam | `ml` | Marathi | `mr` |
+| Bengali | `bn` | Gujarati | `gu` |
+| Punjabi | `pa` | Odia | `or` |
+| Assamese | `as` | Urdu | `ur` |
+
+---
+
+### API reference
+
+#### POST `/api/query`
+
+| Field | Type | Description |
+|---|---|---|
+| `audio` | File | Audio recording (webm, ogg) |
+| `platformId` | string | Your registered platform ID |
+| `lang` | string | Language code (default: `hi`) |
+| `sessionId` | string | Session ID for context memory |
+
+**Response:**
+```json
+{
+  "success": true,
+  "transcript": "आज का मौसम",
+  "command": {
+    "command": { "type": "NAVIGATE", "route": "/weather" },
+    "intent": "weather",
+    "confidence": 0.90,
+    "processingMs": 4200
+  }
+}
+```
+
+#### GET `/api/health`
+```json
+{
+  "status": "ok",
+  "services": { "stt": { "ok": true }, "ollama": { "ok": true } },
+  "platforms": ["demo_platform", "your_platform_id"]
+}
+```
+
+#### WebSocket `ws://localhost:4000`
+Connect with: `?sessionId=xxx&platformId=yyy`
+Receives pushed `NavigationCommand` objects after each query.
+
+---
+
+### Limitations (experimental scope)
+
+- All service adapters return **mock data** — real API integration is out of scope
+- Runs **locally only** — not production deployed
+- Optimised for **short queries** (under 10 seconds of audio)
+- **Single user** per session — no multi-tenancy
+- LLM supports the **5 built-in intent types** — extending requires prompt modification
+
+---
+
 ## Academic Value
 
 | Criterion | Status |
@@ -414,3 +755,4 @@ MIT — see `LICENSE` file.
 - IndicConformer-600M: MIT (AI4Bharat / IIT Madras)
 - Llama 3.1: Meta Llama 3.1 Community License (free for research)
 - Qwen2.5: Apache 2.0
+

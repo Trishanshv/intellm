@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AgriNav SDK — Demo Platform</title>
+  <title>IntLLM SDK — Demo Platform</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -360,15 +360,15 @@
 
     <div class="page" id="page-integration">
       <div class="page-header">🔌 SDK Integration Guide</div>
-      <div class="page-sub">How to embed AgriNav into any web application</div>
+      <div class="page-sub">How to embed IntLLM into any web application</div>
       <div class="card">
         <h3>Minimal Integration (3 steps)</h3>
         <pre style="background:#0f172a;color:#e2e8f0;padding:16px;border-radius:8px;font-size:12px;overflow-x:auto;line-height:1.7">
 <span style="color:#7dd3fc">// Step 1: Import the SDK</span>
-import { AgriNavSDK } from './sdk/AgriNavSDK.js';
+import { IntLLM } from './sdk/IntLLM.js';
 
 <span style="color:#7dd3fc">// Step 2: Initialise with your platform config</span>
-const nav = new AgriNavSDK({
+const nav = new IntLLM({
   serverUrl:  'ws://localhost:4000',
   platformId: 'crop_doctor',
   lang:       'hi',
@@ -469,7 +469,7 @@ nav.sendAudio(audioBlob, 'hi');
     //
     //  This block IS the SDK integration.
     //  In a real parent app this is all a developer writes.
-    //  The AgriNavSDK is loaded as an ES module from the SDK package.
+    //  The IntLLM SDK is loaded as an ES module from the SDK package.
     //
     //  Since this is a standalone HTML demo without a bundler,
     //  we implement a lightweight inline version that communicates

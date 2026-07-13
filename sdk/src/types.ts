@@ -1,5 +1,5 @@
 // ============================================================
-//  AGRI NAV SDK — Public Types
+//  IntLLM SDK — Public Types
 //  These are the ONLY types a parent app developer needs.
 //  Internal engine types are never exposed here.
 // ============================================================
@@ -51,7 +51,7 @@ export type NavigationCommand = {
 
 // ── SDK configuration (passed to constructor) ─────────────────
 
-export type AgriNavSDKConfig = {
+export type IntLLMConfig = {
   serverUrl:   string;                    // e.g. "ws://localhost:4000"
   platformId:  string;                    // must match a registered platform
   sessionId?:  string;                    // auto-generated if not provided

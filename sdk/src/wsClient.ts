@@ -1,7 +1,7 @@
 // ============================================================
 //  WS CLIENT — WebSocket Connection Manager
 //
-//  Handles connection lifecycle so AgriNavSDK never has to:
+//  Handles connection lifecycle so IntLLM never has to:
 //    - Auto-reconnect on drop (exponential backoff)
 //    - Heartbeat ping every 30s to keep connection alive
 //    - Message queue: messages sent while disconnected are
@@ -43,13 +43,13 @@ export class WSClient {
     try {
       this.ws = new WebSocket(this.url);
     } catch (err) {
-      console.error("[AgriNavSDK] WebSocket construction failed:", err);
+      console.error("[IntLLM] WebSocket construction failed:", err);
       this.scheduleReconnect();
       return;
     }
 
     this.ws.onopen = () => {
-      console.log("[AgriNavSDK] Connected to", this.url);
+      console.log("[IntLLM] Connected to", this.url);
       this.reconnectDelay = RECONNECT_BASE_MS; // reset backoff on success
 
       // Flush any messages queued while disconnected
@@ -66,19 +66,19 @@ export class WSClient {
         const data = JSON.parse(event.data as string);
         this.handlers.onMessage(data);
       } catch {
-        console.warn("[AgriNavSDK] Failed to parse message:", event.data);
+        console.warn("[IntLLM] Failed to parse message:", event.data);
       }
     };
 
     this.ws.onclose = () => {
-      console.warn("[AgriNavSDK] Disconnected");
+      console.warn("[IntLLM] Disconnected");
       this.stopHeartbeat();
       this.handlers.onDisconnected?.();
       if (!this.destroyed) this.scheduleReconnect();
     };
 
     this.ws.onerror = (err) => {
-      console.error("[AgriNavSDK] WebSocket error:", err);
+      console.error("[IntLLM] WebSocket error:", err);
       // onclose fires automatically after onerror — no need to reconnect here
     };
   }
@@ -108,7 +108,7 @@ export class WSClient {
 
   private scheduleReconnect(): void {
     this.reconnectTimer = setTimeout(() => {
-      console.log(`[AgriNavSDK] Reconnecting in ${this.reconnectDelay}ms...`);
+      console.log(`[IntLLM] Reconnecting in ${this.reconnectDelay}ms...`);
       this.connect();
       this.reconnectDelay = Math.min(this.reconnectDelay * 2, RECONNECT_MAX_MS);
     }, this.reconnectDelay);

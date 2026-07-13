@@ -1,7 +1,7 @@
 {
-  "name": "agri-nav-sdk",
+  "name": "intellm-sdk",
   "version": "1.0.0",
-  "description": "AgriNav SDK — embed voice navigation into any web platform",
+  "description": "IntLLM SDK — embed voice navigation into any web platform",
   "type": "module",
   "main": "src/AgriNavSDK.ts",
   "scripts": {
